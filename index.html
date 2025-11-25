@@ -156,7 +156,7 @@
         // --- CONFIGURATION ---
         const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
         const CHAR_UUID_CONTROL = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-        const DEVICE_NAME = "Tow Tester Pro 13";
+        // REMOVED DEVICE_NAME filter because we are now accepting all devices for troubleshooting
         const DEVICE_ID_KEY = "testerDeviceId";
 
         // --- STATE & REFERENCES ---
@@ -262,8 +262,9 @@
             
             try {
                 // Request a device, this triggers the permission pop-up
+                // CHANGED: Removed filters to show ALL devices for troubleshooting
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ name: DEVICE_NAME }],
+                    acceptAllDevices: true,
                     optionalServices: [SERVICE_UUID]
                 });
 
