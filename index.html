@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tow Tester Remote</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a0a;
+            color: #e5e5e5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { margin-bottom: 5px; color: #3b82f6; }
+        .status { margin-bottom: 20px; font-size: 0.9rem; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            width: 100%;
+            max-width: 400px;
+        }
+        button {
+            border: none;
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #e5e5e5;
+            background-color: #1f2937; /* gray-800 */
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80px;
+        }
+        button:active { transform: scale(0.96); }
+        .btn-connect { background-color: #1d4ed8; /* blue-700 */ }
+        .btn-off { background-color: #374151; /* gray-700 */ color: #fca5a5; }
+        .active { 
+            box-shadow: 0 0 15px currentColor; 
+            border: 3px solid white;
+        }
+        .text-black { color: #1f2937 !important; }
+
+        /* Icon styling to match active/inactive states */
+        .icon { color: #9ca3af; }
+        .active .icon { color: white; }
+        
+        /* Error Overlay */
+        #error-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #000;
+            z-index: 50;
+            padding: 40px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Environment Error Screen -->
+    <div id="error-overlay">
+        <svg class="mx-auto mb-4 text-red-500" xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+        <h2 class="text-xl font-bold text-white mb-4">Security Blocked</h2>
+        <p class="text-gray-400 mb-6">Android blocks Bluetooth on local files.</p>
+        <div class="bg-gray-900 p-4 rounded text-left text-sm text-gray-300">
+            <p class="mb-2"><strong class="text-white">The Problem:</strong> You opened this as a file (file://).</p>
+            <p class="mb-2"><strong class="text-white">The Fix:</strong> You must host this file online.</p>
+            <ol class="list-decimal ml-4 mt-2 space-y-2">
+                <li>Create a free repository on <strong>GitHub.com</strong></li>
+                <li>Upload this <code>index.html</code></li>
+                <li>Enable <strong>GitHub Pages</strong> in Settings</li>
+                <li>Open the HTTPS link they give you.</li>
+            </ol>
+        </div>
+    </div>
+
+    <h1 class="text-3xl font-extrabold">Tow Tester 13</h1>
+    <p class="text-xs text-gray-500 mb-4">Native-Like Web Bluetooth Controller</p>
+    
+    <div id="status" class="status text-yellow-400">Initializing...</div>
+
+    <button id="connectBtn" class="btn-connect w-full max-w-sm font-bold py-4 mb-6 flex items-center justify-center space-x-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-power"><path d="M12 2v10"/><path d="M18.4 8.6a8 8 0 1 1-12.8 0"/></svg>
+        <span id="connectText">Connect to Tester</span>
+    </button>
+
+    <div class="grid" id="controls" style="opacity: 0.3; pointer-events: none;">
+        
+        <!-- Row 1: Indicators -->
+        <button onclick="sendCmd('L', 'left')" id="btn-left" class="col-span-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left icon"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            <span class="mt-2 text-xs font-bold text-gray-300">LEFT</span>
+        </button>
+        <button onclick="sendCmd('R', 'right')" id="btn-right" class="col-span-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right icon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <span class="mt-2 text-xs font-bold text-gray-300">RIGHT</span>
+        </button>
+
+        <!-- Row 2: Brake -->
+        <button onclick="sendCmd('B', 'brake')" id="btn-brake" class="col-span-4 bg-red-600 active:bg-red-700 hover:bg-red-700" style="background-color: #DC2626;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-zap icon text-white"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span class="mt-2 text-xs font-bold text-white">BRAKE / STOP</span>
+        </button>
+
+        <!-- Row 3: Tail Lights Split -->
+        <button onclick="sendCmd('1', 'parkL')" id="btn-parkL" class="col-span-1" style="background-color: #7C2D12;">
+             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-align-left icon text-orange-200"><line x1="21" x2="3" y1="6" y2="6"/><line x1="16" x2="3" y1="12" y2="12"/><line x1="21" x2="3" y1="18" y2="18"/></svg>
+            <span class="mt-2 text-xs font-bold text-gray-300">L. PARK</span>
+        </button>
+        <button onclick="sendCmd('T', 'tail')" id="btn-tail" class="col-span-2 bg-orange-600 active:bg-orange-700 hover:bg-orange-700" style="background-color: #F97316;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun icon text-white"><circle cx="12" cy="12" r="4"/><path d="M12 2v1"/><path d="M12 21v1"/><path d="m4.22 4.22 1.42 1.42"/><path d="m18.36 18.36 1.42 1.42"/><path d="M1 12h1"/><path d="M21 12h1"/><path d="m4.22 19.78 1.42-1.42"/><path d="m18.36 5.64 1.42-1.42"/></svg>
+            <span class="mt-2 text-xs font-bold text-white">BOTH TAILS</span>
+        </button>
+        <button onclick="sendCmd('2', 'parkR')" id="btn-parkR" class="col-span-1" style="background-color: #7C2D12;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-align-right icon text-orange-200"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="8" y1="12" y2="12"/><line x1="21" x2="3" y1="18" y2="18"/></svg>
+            <span class="mt-2 text-xs font-bold text-gray-300">R. PARK</span>
+        </button>
+
+        <!-- Row 4: Utility -->
+        <button onclick="sendCmd('F', 'fog')" id="btn-fog" class="col-span-2 bg-blue-600 active:bg-blue-700 hover:bg-blue-700" style="background-color: #2563EB;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-car icon text-white"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9.7-.1 1.5-.9 1.5-1.9V8c0-.4-.4-.8-1-.8h-2l-4-4H7l-4 4H3c-.6 0-1 .4-1 .8v3c0 .9.7 1.7 1.5 1.9-.7.2-1.5 1-1.5 1.9v3c0 .6.4 1 1 1h2"/><path d="M7 17v-2"/><path d="M17 17v-2"/></svg>
+            <span class="mt-2 text-xs font-bold text-white">FOG</span>
+        </button>
+        <button onclick="sendCmd('V', 'reverse')" id="btn-reverse" class="col-span-2 bg-gray-200 active:bg-gray-300 hover:bg-gray-300" style="background-color: #F3F4F6;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw icon text-black"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.76 2.65L3 7"/><path d="M3 3v4h4"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.76-2.65L21 17"/><path d="M21 21v-4h-4"/></svg>
+            <span class="mt-2 text-xs font-bold text-black">REVERSE</span>
+        </button>
+
+        <!-- Row 5: Auto / Off -->
+        <button onclick="sendCmd('S', 'auto')" id="btn-auto" class="col-span-2 bg-emerald-600 active:bg-emerald-700 hover:bg-emerald-700">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw icon text-white"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.76 2.65L3 7"/><path d="M3 3v4h4"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.76-2.65L21 17"/><path d="M21 21v-4h-4"/></svg>
+            <span class="mt-2 text-xs font-bold text-white" id="auto-text">AUTO SEQUENCE</span>
+        </button>
+        <button onclick="sendCmd('X', 'reset')" id="btn-reset" class="col-span-2 btn-off">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-circle icon text-red-300"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+            <span class="mt-2 text-xs font-bold">ALL OFF / RESET</span>
+        </button>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+        const CHAR_UUID_CONTROL = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+        const DEVICE_NAME = "Tow Tester Pro 13";
+        const DEVICE_ID_KEY = "testerDeviceId";
+
+        // --- STATE & REFERENCES ---
+        let controlCharacteristic = null;
+        let activeLights = {};
+        let isAutoTesting = false;
+        const buttons = document.querySelectorAll('button:not(#connectBtn)');
+        const connectBtn = document.getElementById('connectBtn');
+        const connectText = document.getElementById('connectText');
+        const statusDiv = document.getElementById('status');
+        const controlsDiv = document.getElementById('controls');
+        const errorOverlay = document.getElementById('error-overlay');
+
+        // --- UI UTILITIES ---
+        function setStatus(message, isError = false, isSuccess = false) {
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + (isSuccess ? 'text-green-400' : isError ? 'text-red-400' : 'text-yellow-400');
+        }
+
+        function toggleControls(enable) {
+            controlsDiv.style.opacity = enable ? '1' : '0.3';
+            controlsDiv.style.pointerEvents = enable ? 'auto' : 'none';
+        }
+
+        function updateButtonUI(key, isActive) {
+            const btn = document.getElementById(`btn-${key}`);
+            if (btn) {
+                if (isActive) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                    // Reset custom colors on the specific buttons when inactive (only if they had active colors)
+                    if (key === 'brake') btn.style.backgroundColor = '#DC2626'; 
+                    if (key === 'tail') btn.style.backgroundColor = '#F97316';
+                    if (key === 'fog') btn.style.backgroundColor = '#2563EB';
+                    if (key === 'reverse') btn.style.backgroundColor = '#F3F4F6'; // White/Gray
+                    if (key === 'auto') {
+                        document.getElementById('auto-text').textContent = 'AUTO SEQUENCE';
+                        btn.style.backgroundColor = '#059669'; // emerald-600
+                    }
+                }
+            }
+        }
+
+        function resetAllLightsUI() {
+            activeLights = {};
+            isAutoTesting = false;
+            document.getElementById('auto-text').textContent = 'AUTO SEQUENCE';
+            buttons.forEach(btn => btn.classList.remove('active'));
+            // Re-apply static colors after reset
+            updateButtonUI('brake', false);
+            updateButtonUI('tail', false);
+            updateButtonUI('fog', false);
+            updateButtonUI('reverse', false);
+            updateButtonUI('auto', false);
+        }
+
+        // --- BLUETOOTH LOGIC ---
+
+        function onDisconnected(event) {
+            console.log('Device disconnected:', event.target.name);
+            setStatus('Disconnected. Click Connect.', true);
+            toggleControls(false);
+            connectBtn.style.display = 'block';
+            resetAllLightsUI();
+        }
+
+        async function connectDevice(device) {
+            try {
+                setStatus(`Connecting to ${device.name}...`);
+                
+                device.addEventListener('gattserverdisconnected', onDisconnected);
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                const char = await service.getCharacteristic(CHAR_UUID_CONTROL);
+                
+                controlCharacteristic = char;
+                toggleControls(true);
+                connectBtn.style.display = 'none';
+                setStatus(`✅ Connected to ${device.name}`, false, true);
+                
+                // Store the device ID for fast reconnect next time
+                localStorage.setItem(DEVICE_ID_KEY, device.id);
+
+            } catch (error) {
+                console.error("Connection Error:", error);
+                setStatus(`Failed to connect. Try again.`, true);
+                toggleControls(false);
+                connectBtn.style.display = 'block';
+            }
+        }
+
+        async function requestAndConnect() {
+            if (!navigator.bluetooth) {
+                // If bluetooth is missing, check if it's the security policy
+                if (window.isSecureContext === false) {
+                     errorOverlay.style.display = 'block';
+                     return;
+                }
+                return setStatus("Error: Web Bluetooth not supported.", true);
+            }
+            setStatus("Scanning for device...");
+            
+            try {
+                // Request a device, this triggers the permission pop-up
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: DEVICE_NAME }],
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                if (device) {
+                    await connectDevice(device);
+                } else {
+                    setStatus("Connection canceled.", true);
+                }
+            } catch (error) {
+                if (error.code === 8) { // User Canceled Request
+                     setStatus("Connection cancelled by user.", true);
+                } else if (error.name === 'SecurityError' || error.message.includes('permissions policy')) {
+                     // This catches the specific file:// access error
+                     errorOverlay.style.display = 'block';
+                } else {
+                     setStatus(`Scan Error: ${error.message}`, true);
+                }
+               
+            }
+        }
+
+        async function fastReconnect() {
+            const savedDeviceId = localStorage.getItem(DEVICE_ID_KEY);
+            if (!savedDeviceId) {
+                setStatus("Ready. Tap Connect to scan.");
+                return;
+            }
+
+            setStatus("Attempting fast reconnect to previous device...");
+            
+            try {
+                if (!navigator.bluetooth) return; // Skip if API not available
+
+                // Get the device object from the ID
+                const devices = await navigator.bluetooth.getDevices();
+                const device = devices.find(d => d.id === savedDeviceId);
+
+                if (device) {
+                    // Try to connect silently without the pop-up
+                    await connectDevice(device);
+                } else {
+                    localStorage.removeItem(DEVICE_ID_KEY);
+                    setStatus("Previous device not found. Tap Connect to scan.");
+                }
+            } catch (error) {
+                 // This catches GATTCannotConnect or other silent errors
+                setStatus("Reconnect failed. Scanning required.", true);
+                localStorage.removeItem(DEVICE_ID_KEY);
+            }
+        }
+
+        // --- COMMAND HANDLER ---
+
+        async function sendCmd(cmd, key) {
+            if (!controlCharacteristic) {
+                return setStatus("Error: Device not connected.", true);
+            }
+            
+            try {
+                // Web Bluetooth uses ArrayBuffer for writing
+                const data = new TextEncoder().encode(cmd);
+                await controlCharacteristic.writeValue(data);
+
+                // --- UI State Update ---
+                
+                if (cmd === 'X') {
+                    resetAllLightsUI();
+                } else if (cmd === 'S') {
+                    isAutoTesting = !isAutoTesting;
+                    if (isAutoTesting) {
+                         resetAllLightsUI(); // Clear manual state when starting sequence
+                         document.getElementById('auto-text').textContent = 'STOP SEQUENCE';
+                         document.getElementById('btn-auto').classList.add('active');
+                    } else {
+                         document.getElementById('auto-text').textContent = 'AUTO SEQUENCE';
+                         document.getElementById('btn-auto').classList.remove('active');
+                    }
+                } else {
+                    // Manual command stops auto sequence
+                    isAutoTesting = false;
+                    document.getElementById('auto-text').textContent = 'AUTO SEQUENCE';
+                    document.getElementById('btn-auto').classList.remove('active');
+
+                    // Handle toggle logic
+                    const newState = !activeLights[key];
+                    activeLights[key] = newState;
+
+                    if (key === 'tail') {
+                         activeLights['parkL'] = newState;
+                         activeLights['parkR'] = newState;
+                         updateButtonUI('parkL', newState);
+                         updateButtonUI('parkR', newState);
+                    } else if (key === 'parkL' || key === 'parkR') {
+                         activeLights['tail'] = false; // Turn off main tail if L/R toggled manually
+                         updateButtonUI('tail', false);
+                    }
+                    
+                    updateButtonUI(key, newState);
+                }
+            } catch (error) {
+                console.error("BLE Write Failed:", error);
+                setStatus("Write failed. Device disconnected?", true);
+                resetAllLightsUI();
+                // If write fails, force a disconnect listener event to clean up
+                if (controlCharacteristic.service.device) {
+                     controlCharacteristic.service.device.gatt.disconnect();
+                }
+            }
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = function() {
+            // Initial Environment Check
+            if (!navigator.bluetooth && window.location.protocol === 'file:') {
+                errorOverlay.style.display = 'block';
+            }
+
+            connectBtn.addEventListener('click', requestAndConnect);
+            // On load, try to reconnect to the last saved device silently
+            fastReconnect();
+        };
+
+    </script>
+</body>
+</html>
