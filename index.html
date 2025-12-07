@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tow Tester Remote</title>
+    <title>Surely it works now</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
@@ -18,7 +18,7 @@
             margin: 0;
             padding: 20px;
         }
-        h1 { margin-bottom: 5px; color: #3b82f6; }
+        h1 { margin-bottom: 5px; color: #3b82f6; text-align: center; }
         .status { margin-bottom: 20px; font-size: 0.9rem; }
         .grid {
             display: grid;
@@ -89,7 +89,7 @@
         </div>
     </div>
 
-    <h1 class="text-3xl font-extrabold">Tow Tester 13</h1>
+    <h1 class="text-3xl font-extrabold">Surely it works now</h1>
     <p class="text-xs text-gray-500 mb-4">Native-Like Web Bluetooth Controller</p>
     
     <div id="status" class="status text-yellow-400">Initializing...</div>
@@ -156,7 +156,8 @@
         // --- CONFIGURATION ---
         const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
         const CHAR_UUID_CONTROL = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-        // REMOVED DEVICE_NAME filter because we are now accepting all devices for troubleshooting
+        // Updated to match the firmware name
+        const DEVICE_NAME = "thisthing"; 
         const DEVICE_ID_KEY = "testerDeviceId";
 
         // --- STATE & REFERENCES ---
@@ -262,9 +263,9 @@
             
             try {
                 // Request a device, this triggers the permission pop-up
-                // CHANGED: Removed filters to show ALL devices for troubleshooting
+                // Filter specifically for "thisthing"
                 const device = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true,
+                    filters: [{ name: DEVICE_NAME }],
                     optionalServices: [SERVICE_UUID]
                 });
 
