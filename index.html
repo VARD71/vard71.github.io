@@ -150,13 +150,19 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-circle icon text-red-300"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
             <span class="mt-2 text-xs font-bold">ALL OFF / RESET</span>
         </button>
+
+        <!-- Row 6: Update Mode -->
+        <button onclick="sendCmd('W', 'wifi')" id="btn-wifi" class="col-span-4" style="background-color: #7e22ce; height: 50px; min-height: 50px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-wifi icon text-white"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" x2="12.01" y1="20" y2="20"/></svg>
+            <span class="mt-1 text-xs font-bold text-white">ENABLE WIFI UPDATE</span>
+        </button>
     </div>
 
     <script>
         // --- CONFIGURATION ---
         const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
         const CHAR_UUID_CONTROL = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-        // Updated to match the firmware name
+        // Filter specifically for your device name
         const DEVICE_NAME = "thisthing"; 
         const DEVICE_ID_KEY = "testerDeviceId";
 
@@ -194,6 +200,7 @@
                     if (key === 'tail') btn.style.backgroundColor = '#F97316';
                     if (key === 'fog') btn.style.backgroundColor = '#2563EB';
                     if (key === 'reverse') btn.style.backgroundColor = '#F3F4F6'; // White/Gray
+                    if (key === 'wifi') btn.style.backgroundColor = '#7e22ce'; // Purple
                     if (key === 'auto') {
                         document.getElementById('auto-text').textContent = 'AUTO SEQUENCE';
                         btn.style.backgroundColor = '#059669'; // emerald-600
@@ -213,6 +220,7 @@
             updateButtonUI('fog', false);
             updateButtonUI('reverse', false);
             updateButtonUI('auto', false);
+            updateButtonUI('wifi', false);
         }
 
         // --- BLUETOOTH LOGIC ---
@@ -343,6 +351,11 @@
                          document.getElementById('auto-text').textContent = 'AUTO SEQUENCE';
                          document.getElementById('btn-auto').classList.remove('active');
                     }
+                } else if (cmd === 'W') {
+                    // Toggle WiFi UI state
+                    const btn = document.getElementById('btn-wifi');
+                    const isActive = btn.classList.contains('active');
+                    updateButtonUI('wifi', !isActive);
                 } else {
                     // Manual command stops auto sequence
                     isAutoTesting = false;
