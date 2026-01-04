@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Surely it works now</title>
+    <title>Tow Tester Remote</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
@@ -68,6 +68,25 @@
             padding: 40px;
             text-align: center;
         }
+        
+        /* Custom Checkbox Style */
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: #6b7280;
+            cursor: pointer;
+            user-select: none;
+        }
+        .checkbox-wrapper input {
+            margin-right: 8px;
+            accent-color: #3b82f6;
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
     </style>
 </head>
 <body>
@@ -89,15 +108,19 @@
         </div>
     </div>
 
-    <h1 class="text-3xl font-extrabold">Surely it works now</h1>
-    <p class="text-xs text-gray-500 mb-4">Native-Like Web Bluetooth Controller</p>
-    
     <div id="status" class="status text-yellow-400">Initializing...</div>
 
-    <button id="connectBtn" class="btn-connect w-full max-w-sm font-bold py-4 mb-6 flex items-center justify-center space-x-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-power"><path d="M12 2v10"/><path d="M18.4 8.6a8 8 0 1 1-12.8 0"/></svg>
-        <span id="connectText">Connect to Tester</span>
-    </button>
+    <div class="w-full max-w-sm mb-6">
+        <button id="connectBtn" class="btn-connect w-full font-bold py-4 flex items-center justify-center space-x-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-power"><path d="M12 2v10"/><path d="M18.4 8.6a8 8 0 1 1-12.8 0"/></svg>
+            <span id="connectText">Connect to Tester</span>
+        </button>
+        
+        <label class="checkbox-wrapper">
+            <input type="checkbox" id="simCheckbox">
+            <span>Simulate Mode (Test UI)</span>
+        </label>
+    </div>
 
     <div class="grid" id="controls" style="opacity: 0.3; pointer-events: none;">
         
@@ -169,13 +192,17 @@
         // --- STATE & REFERENCES ---
         let controlCharacteristic = null;
         let activeLights = {};
-        let isAutoTesting = false;
+        // MOD: Default to TRUE because firmware defaults to auto-sequence
+        let isAutoTesting = true; 
+        let isSimulating = false;
+        
         const buttons = document.querySelectorAll('button:not(#connectBtn)');
         const connectBtn = document.getElementById('connectBtn');
         const connectText = document.getElementById('connectText');
         const statusDiv = document.getElementById('status');
         const controlsDiv = document.getElementById('controls');
         const errorOverlay = document.getElementById('error-overlay');
+        const simCheckbox = document.getElementById('simCheckbox');
 
         // --- UI UTILITIES ---
         function setStatus(message, isError = false, isSuccess = false) {
@@ -211,7 +238,8 @@
 
         function resetAllLightsUI() {
             activeLights = {};
-            isAutoTesting = false;
+            // NOTE: Do not modify isAutoTesting here! It causes logic loops.
+            
             document.getElementById('auto-text').textContent = 'AUTO SEQUENCE';
             buttons.forEach(btn => btn.classList.remove('active'));
             // Re-apply static colors after reset
@@ -222,6 +250,12 @@
             updateButtonUI('auto', false);
             updateButtonUI('wifi', false);
         }
+        
+        function setAutoButtonActive() {
+             resetAllLightsUI(); 
+             document.getElementById('auto-text').textContent = 'STOP SEQUENCE';
+             document.getElementById('btn-auto').classList.add('active');
+        }
 
         // --- BLUETOOTH LOGIC ---
 
@@ -229,8 +263,9 @@
             console.log('Device disconnected:', event.target.name);
             setStatus('Disconnected. Click Connect.', true);
             toggleControls(false);
-            connectBtn.style.display = 'block';
+            connectBtn.style.display = 'flex';
             resetAllLightsUI();
+            isAutoTesting = true; // Reset assumption for next connect
         }
 
         async function connectDevice(device) {
@@ -249,12 +284,17 @@
                 
                 // Store the device ID for fast reconnect next time
                 localStorage.setItem(DEVICE_ID_KEY, device.id);
+                
+                // MOD: Visually set Auto Sequence to Active on connect
+                if (isAutoTesting) {
+                    setAutoButtonActive();
+                }
 
             } catch (error) {
                 console.error("Connection Error:", error);
                 setStatus(`Failed to connect. Try again.`, true);
                 toggleControls(false);
-                connectBtn.style.display = 'block';
+                connectBtn.style.display = 'flex';
             }
         }
 
@@ -328,28 +368,35 @@
         // --- COMMAND HANDLER ---
 
         async function sendCmd(cmd, key) {
-            if (!controlCharacteristic) {
+            // Check connection unless simulating
+            if (!controlCharacteristic && !isSimulating) {
                 return setStatus("Error: Device not connected.", true);
             }
             
             try {
-                // Web Bluetooth uses ArrayBuffer for writing
-                const data = new TextEncoder().encode(cmd);
-                await controlCharacteristic.writeValue(data);
+                // Only attempt actual Bluetooth write if NOT simulating
+                if (!isSimulating && controlCharacteristic) {
+                    const data = new TextEncoder().encode(cmd);
+                    await controlCharacteristic.writeValue(data);
+                } else if (isSimulating) {
+                    console.log(`[SIM] Sending: ${cmd} (${key})`);
+                }
 
-                // --- UI State Update ---
+                // --- UI State Update Logic ---
                 
                 if (cmd === 'X') {
                     resetAllLightsUI();
+                    isAutoTesting = false;
                 } else if (cmd === 'S') {
-                    isAutoTesting = !isAutoTesting;
+                    // Sequence Toggle Logic
+                    isAutoTesting = !isAutoTesting; // Toggle the state variable FIRST
+                    
                     if (isAutoTesting) {
-                         resetAllLightsUI(); // Clear manual state when starting sequence
-                         document.getElementById('auto-text').textContent = 'STOP SEQUENCE';
-                         document.getElementById('btn-auto').classList.add('active');
+                         setAutoButtonActive();
                     } else {
-                         document.getElementById('auto-text').textContent = 'AUTO SEQUENCE';
-                         document.getElementById('btn-auto').classList.remove('active');
+                         // STOPPING SEQUENCE: Clear everything per user requirement
+                         resetAllLightsUI(); 
+                         // Logic correct: resetAllLightsUI() removes 'active' class and resets text
                     }
                 } else if (cmd === 'W') {
                     // Toggle WiFi UI state
@@ -357,37 +404,87 @@
                     const isActive = btn.classList.contains('active');
                     updateButtonUI('wifi', !isActive);
                 } else {
-                    // Manual command stops auto sequence
+                    // Manual command logic
                     isAutoTesting = false;
                     document.getElementById('auto-text').textContent = 'AUTO SEQUENCE';
                     document.getElementById('btn-auto').classList.remove('active');
 
-                    // Handle toggle logic
-                    const newState = !activeLights[key];
-                    activeLights[key] = newState;
+                    // EXCLUSIVE LOGIC
+                    const exclusiveKeys = ['left', 'right', 'brake', 'fog', 'reverse'];
+                    const markerKeys = ['parkL', 'parkR'];
 
-                    if (key === 'tail') {
-                         activeLights['parkL'] = newState;
-                         activeLights['parkR'] = newState;
-                         updateButtonUI('parkL', newState);
-                         updateButtonUI('parkR', newState);
-                    } else if (key === 'parkL' || key === 'parkR') {
-                         activeLights['tail'] = false; // Turn off main tail if L/R toggled manually
-                         updateButtonUI('tail', false);
+                    if (exclusiveKeys.includes(key)) {
+                        // If turning ON an exclusive key, clear everything first
+                        const newState = !activeLights[key];
+                        activeLights = {}; // Wipe all
+                        if (newState) activeLights[key] = true;
+                    } 
+                    else if (markerKeys.includes(key)) {
+                        // If toggling a marker
+                        const newState = !activeLights[key];
+                        // Identify the OTHER marker
+                        const otherMarker = (key === 'parkL') ? 'parkR' : 'parkL';
+                        const otherState = activeLights[otherMarker];
+                        
+                        activeLights = {}; // Wipe all non-markers
+                        if (otherState) activeLights[otherMarker] = true; // Restore neighbor marker
+                        if (newState) activeLights[key] = true; // Set current marker
                     }
-                    
-                    updateButtonUI(key, newState);
+                    else if (key === 'tail') {
+                        // Special 'Both Tails' macro
+                        const newState = !activeLights['tail'];
+                        activeLights = {}; // Wipe all
+                        if (newState) {
+                            activeLights['tail'] = true;
+                            activeLights['parkL'] = true;
+                            activeLights['parkR'] = true;
+                        }
+                    }
+
+                    // Redraw UI based on new activeLights object
+                    buttons.forEach(btn => {
+                        const btnKey = btn.id.replace('btn-', '');
+                        if (btnKey !== 'wifi' && btnKey !== 'reset') { // Skip util buttons
+                             updateButtonUI(btnKey, activeLights[btnKey]);
+                        }
+                    });
                 }
             } catch (error) {
                 console.error("BLE Write Failed:", error);
                 setStatus("Write failed. Device disconnected?", true);
                 resetAllLightsUI();
                 // If write fails, force a disconnect listener event to clean up
-                if (controlCharacteristic.service.device) {
+                if (!isSimulating && controlCharacteristic.service.device) {
                      controlCharacteristic.service.device.gatt.disconnect();
                 }
             }
         }
+
+        // --- SIMULATION HANDLER ---
+        simCheckbox.addEventListener('change', (e) => {
+            isSimulating = e.target.checked;
+            
+            if (isSimulating) {
+                // Entering Simulation Mode
+                setStatus("Simulated Connection Active", false, true); // Green text
+                toggleControls(true);
+                connectBtn.style.display = 'none';
+                // Simulate default state (Auto Sequence Running)
+                if (isAutoTesting) setAutoButtonActive();
+            } else {
+                // Exiting Simulation Mode
+                if (!controlCharacteristic) {
+                    setStatus("Ready. Tap Connect to scan.");
+                    toggleControls(false);
+                    connectBtn.style.display = 'flex';
+                    resetAllLightsUI();
+                } else {
+                    setStatus(`✅ Connected to ${controlCharacteristic.service.device.name}`, false, true);
+                    toggleControls(true);
+                    connectBtn.style.display = 'none';
+                }
+            }
+        });
 
         // --- INITIALIZATION ---
         window.onload = function() {
